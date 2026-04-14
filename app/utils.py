@@ -9,13 +9,13 @@ from crewai.llm import LLM
 
 # ====================== GEMINI LLM SETUP ======================
 def get_default_llm():
-    api_key = "AIzaSyBZ4DWJ5aCWds2Yj_H3MAhxuHQWfk-m5SI"
+    api_key = "AIzaSyAZneqkuin6iyDA1_ISZ3CmfaCgXBIPSQo"
     if not api_key:
         raise ValueError("❌ GEMINI_API_KEY is not set!\nRun this command first:\nset GEMINI_API_KEY=your_new_key_here")
     
-    print("✅ Using Gemini model: gemini/gemini-3-flash")
+    print("✅ Using Gemini model: gemini/gemini-2.5-flash")
     return LLM(
-        model="gemini/gemini-3-flash-preview",
+        model="gemini/gemini-2.5-flash",
         temperature=0.7,
         api_key=api_key,
     )
