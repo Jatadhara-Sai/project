@@ -112,11 +112,38 @@ Reinforcement learning (RL) approaches to adaptive education model the problem a
 
 \subsection{Assessment Workflow Overview}
 
-The adaptive MCQ difficulty prediction system follows a per-question adaptive loop. For each question presented to the student, the system captures the student's selected answer and the time taken to respond. These inputs are passed to the CrewAI pipeline, which executes three agents sequentially. The MCQ Evaluator Agent (SOLMA) first determines whether the answer is correct or incorrect. The Difficulty Predictor Agent (SOLPA) then classifies the difficulty of the current question based on correctness and time. The Adaptive MCQ Overseer Agent (SOLTA) synthesizes these results to output both the current question's difficulty classification and the recommended difficulty level for the next question. This loop repeats for each of the 20~questions in the session, enabling real-time adaptation of assessment difficulty.
+The adaptive MCQ difficulty prediction system follows a per-question adaptive loop. For each question presented to the student, the system captures the student's selected answer and the time taken to respond. These inputs are passed to the CrewAI pipeline, which executes three agents sequentially. The MCQ Evaluator Agent (SOLMA) first determines whether the answer is correct or incorrect. The Difficulty Predictor Agent (SOLPA) then classifies the difficulty of the current question based on correctness and time. The Adaptive MCQ Overseer Agent (SOLTA) synthesizes these results to output both the current question's difficulty classification and the recommended difficulty level for the next question. This loop repeats for each of the 20~questions in the session, enabling real-time adaptation of assessment difficulty. Fig.~\ref{fig:user_flow} depicts the end-to-end user flow from assessment selection through adaptive question delivery to result presentation.
+
+\begin{figure}[htbp]
+\centering
+% ---- RECOMMENDED IMAGE: user_flow.png ----
+% A vertical flowchart showing the complete user journey:
+% [Login/Signup] → [Dashboard (CI Score, Domain Stats)]
+%        ↓
+% [Assessment Selection: Reasoning | Aptitude | Verbal]
+%        ↓
+% [Fullscreen Gate: "Enter Fullscreen & Start Test"]
+%        ↓
+% [Question Display (Q1 at Easy)] ←──────────┐
+%        ↓                                    |
+% [Student answers / skips]                   |
+%        ↓                                    |
+% [Sync: Rule-based next difficulty]          |
+% [Async: SOLMA→SOLPA→SOLTA pipeline]        |
+%        ↓                                    |
+% [Generate next Q at new difficulty]─────────┘
+%        ↓ (after Q20)
+% [Submit Confirmation] → [Results: Score, Per-Q Analysis]
+%        ↓
+% [Test History / Leaderboard / Dashboard]
+\includegraphics[width=\columnwidth]{user_flow.png}
+\caption{End-to-end assessment workflow. The student selects a cognitive domain, enters fullscreen mode, and answers 20 adaptively generated MCQs. Each response triggers synchronous difficulty adaptation and asynchronous APOT agent analysis. After submission, results including per-question AI reasoning are presented.}
+\label{fig:user_flow}
+\end{figure}
 
 \subsection{Layered Architecture}
 
-The system is organized into five interconnected layers, each with clearly defined responsibilities:
+The system is organized into five interconnected layers, each with clearly defined responsibilities, as illustrated in Fig.~\ref{fig:system_arch}.
 
 \textbf{1) Presentation Layer.} Implemented as Django HTML templates with Bootstrap~5.3, this layer handles question display, answer input collection, and timer visualization. A fullscreen enforcement gate using the browser Fullscreen API ensures assessment integrity, while \texttt{navigator.sendBeacon} provides graceful auto-submission on tab closure.
 
@@ -128,9 +155,27 @@ The system is organized into five interconnected layers, each with clearly defin
 
 \textbf{5) Data/Persistence Layer.} Three MySQL-backed Django models---\texttt{StudentTestResult}, \texttt{QuestionPerformance}, and \texttt{AdaptiveLearningHistory}---provide durable storage for test sessions, per-question AI analysis, and difficulty progression tracking.
 
+\begin{figure}[htbp]
+\centering
+% ---- RECOMMENDED IMAGE: system_architecture.png ----
+% A layered block diagram showing the five layers stacked vertically:
+% [Presentation Layer (HTML/Bootstrap/JS)]
+%        ↕
+% [Controller/Orchestration Layer (Django Views)]
+%        ↕                    ↕
+% [AI/Agent Pipeline Layer]  [Question Generation Layer]
+% [CrewAI: SOLMA→SOLPA→SOLTA]  [Gemini MCQ Gen]
+%        ↕                    ↕
+% [Data/Persistence Layer (MySQL: 3 tables)]
+% Show arrows for sync and async data flow
+\includegraphics[width=\columnwidth]{system_architecture.png}
+\caption{Five-layer system architecture. The Presentation Layer communicates with the Controller via HTTP. The Controller dispatches synchronous rule-based difficulty updates and spawns asynchronous APOT agent pipeline threads. The Question Generation Layer produces MCQs via Gemini at the adapted difficulty. All durable state is persisted to three MySQL tables.}
+\label{fig:system_arch}
+\end{figure}
+
 \subsection{APOT Model Adaptation}
 
-The original APOT learning model~\cite{outay2024} follows a cyclic process of Assess, Predict, Oversee, and Transit stages managed by the LSAA, SOLMA, SOLPA, and SOLTA agents. In our adaptation:
+The original APOT learning model~\cite{outay2024} follows a cyclic process of Assess, Predict, Oversee, and Transit stages managed by the LSAA, SOLMA, SOLPA, and SOLTA agents. Fig.~\ref{fig:apot_model} illustrates the original APOT cyclic model and its agent roles. In our adaptation:
 
 \begin{itemize}
     \item The \textbf{Assess} stage maps to the MCQ Evaluator Agent, which implements the \textbf{SOLMA} (Stage of Learning Monitoring Agent) function by determining answer correctness and monitoring the student's immediate performance.
@@ -138,6 +183,13 @@ The original APOT learning model~\cite{outay2024} follows a cyclic process of As
     \item The \textbf{Oversee} and \textbf{Transit} stages jointly map to the Adaptive MCQ Overseer Agent, which implements the \textbf{SOLTA} (Stage of Learning Transition Agent) function by synthesizing prior analyses and determining the appropriate difficulty transition.
     \item The \textbf{LSAA} (Learning Style Assessment Agent) function is embodied by the overarching assessment design: topic-aware question generation across three cognitive domains (Reasoning, Aptitude, Verbal Ability) and the domain-specific prompt engineering that tailors question content to each domain's characteristics.
 \end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{apot_learning_model.png}
+\caption{The APOT (Assess--Predict--Oversee--Transit) cyclic learning model from Outay~\textit{et~al.}~\cite{outay2024}, showing the four stages managed by specialized agents (LSAA, SOLMA, SOLPA, SOLTA). Our system reinterprets these agents as LLM-powered CrewAI modules for adaptive MCQ difficulty prediction.}
+\label{fig:apot_model}
+\end{figure}
 
 Table~\ref{tab:apot_mapping} summarizes this mapping between the APOT agents and their implementations in our system.
 
@@ -182,6 +234,32 @@ f_{\downarrow}(d_n) & \text{if answer is incorrect}
 where $f_{\uparrow}$: Easy$\rightarrow$Medium, Medium$\rightarrow$Hard, Hard$\rightarrow$Hard and $f_{\downarrow}$: Hard$\rightarrow$Medium, Medium$\rightarrow$Easy, Easy$\rightarrow$Easy. The next question is immediately generated at this difficulty and returned in the HTTP response, ensuring sub-second UI updates.
 
 \textbf{Asynchronous Layer (Multi-Agent AI Pipeline).} In parallel, a daemon thread executes the full SOLMA$\rightarrow$SOLPA$\rightarrow$SOLTA CrewAI pipeline. When complete, the richer AI-derived analysis---including predicted difficulty, reasoning, and recommendations---is persisted to the \texttt{QuestionPerformance} and \texttt{AdaptiveLearningHistory} tables, and the \texttt{StudentTestResult.final\_difficulty} is updated. This design ensures that detailed AI insights are always recorded for post-assessment analytics without blocking the student's real-time test experience.
+
+Fig.~\ref{fig:dual_layer} illustrates the parallel execution of the synchronous and asynchronous layers.
+
+\begin{figure}[htbp]
+\centering
+% ---- RECOMMENDED IMAGE: dual_layer_architecture.png ----
+% A horizontal swimlane or split-path diagram showing:
+% [Student submits answer]
+%         |
+%    ┌────┴────┐
+%    ↓         ↓
+% [SYNC PATH]  [ASYNC PATH]
+% Rule-based    Daemon Thread:
+% fallback      SOLMA→SOLPA→SOLTA
+% d_next=f(d)   (CrewAI + Gemini)
+%    ↓              ↓
+% Generate next Q   Write to DB:
+% via Gemini        QuestionPerformance
+%    ↓              AdaptiveLearningHistory
+% Return JSON       Update final_difficulty
+% to frontend
+% (sub-second)     (completes later)
+\includegraphics[width=\columnwidth]{dual_layer_architecture.png}
+\caption{Dual-layer difficulty adaptation architecture. The synchronous path (left) applies rule-based fallback and returns the next question within the HTTP response. The asynchronous path (right) runs the full SOLMA$\rightarrow$SOLPA$\rightarrow$SOLTA pipeline in a background thread and persists the AI analysis for post-assessment review.}
+\label{fig:dual_layer}
+\end{figure}
 
 \subsection{Dynamic LLM-Driven Question Generation}
 
@@ -452,7 +530,25 @@ No  & Easy   & Easy   & Reinforce confidence \\
 \end{tabular}
 \end{table}
 
-The rule set covers all six combinations in the $\{\text{Correct}, \text{Incorrect}\} \times \{\text{Easy}, \text{Medium}, \text{Hard}\}$ space, ensuring no undefined transitions exist. The design prevents two failure modes common in adaptive systems: (1)~\textit{oscillation}, where a student alternates between difficulty levels without convergence, is mitigated by the ``maintain mastery'' Hard+Correct rule; and (2)~\textit{indefinite floor trapping}, where a student is stuck at the lowest level, is mitigated by the Easy+Correct escalation to Medium.
+The rule set covers all six combinations in the $\{\text{Correct}, \text{Incorrect}\} \times \{\text{Easy}, \text{Medium}, \text{Hard}\}$ space, ensuring no undefined transitions exist. The design prevents two failure modes common in adaptive systems: (1)~\textit{oscillation}, where a student alternates between difficulty levels without convergence, is mitigated by the ``maintain mastery'' Hard+Correct rule; and (2)~\textit{indefinite floor trapping}, where a student is stuck at the lowest level, is mitigated by the Easy+Correct escalation to Medium. Fig.~\ref{fig:state_transition} visualizes these transitions as a state diagram.
+
+\begin{figure}[htbp]
+\centering
+% ---- RECOMMENDED IMAGE: difficulty_state_transition.png ----
+% A state diagram with three nodes: Easy, Medium, Hard
+% Green arrows (correct answers):
+%   Easy --correct--> Medium
+%   Medium --correct--> Hard
+%   Hard --correct--> Hard (self-loop) or dashed to Medium
+% Red arrows (incorrect answers):
+%   Hard --incorrect--> Medium
+%   Medium --incorrect--> Easy
+%   Easy --incorrect--> Easy (self-loop)
+% Label each arrow with the condition (Correct/Incorrect)
+\includegraphics[width=\columnwidth]{difficulty_state_transition.png}
+\caption{Difficulty state transition diagram encoded in the SOLTA agent. Green arrows represent transitions on correct answers (escalation); red arrows represent transitions on incorrect answers (de-escalation). Self-loops at Easy (incorrect) and Hard (correct) represent reinforcement and mastery maintenance, respectively.}
+\label{fig:state_transition}
+\end{figure}
 
 \subsection{Behavioral Trace Across Performance Profiles}
 
