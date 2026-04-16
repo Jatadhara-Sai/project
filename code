@@ -51,7 +51,9 @@ adaptive assessment, MCQ difficulty prediction, multi-agent system, CrewAI, Gemi
 \section{Introduction}
 % -------------------------------------------------------
 
-Traditional educational assessments adopt a one-size-fits-all model, presenting identical questions to all students regardless of individual competency. High-performing students find such assessments unchallenging, while low-performing students struggle excessively, leading to disengagement. Such systems fail to capture the true ability of learners and provide little actionable insight regarding individual learning trajectories \cite{weiss2004}. Most existing systems provide limited feedback that hinders accurate competency measurement and limits learning efficiency \cite{vygotsky1978}. Without continuous adaptation, assessments remain rigid and unable to reflect the dynamic nature of learning \cite{mislevy2003}.
+Traditional educational assessments adopt a one-size-fits-all model, presenting identical questions to all students regardless of individual competency. This approach inherently assumes uniform learning ability and pace among learners, which is rarely the case in real-world educational environments. As a result, high-performing students may find the assessment too easy and unchallenging, while low-performing students may struggle excessively, leading to frustration and disengagement. Consequently, such systems fail to capture the true ability of learners at either extreme of the performance spectrum and provide little actionable insight for instructors regarding individual strengths, weaknesses, and learning trajectories \cite{weiss2004}.
+
+Furthermore, most existing assessment systems provide limited or generic feedback that does not help students understand their specific areas of strength and weakness. This lack of personalization hinders accurate competency measurement, reduces student engagement, and limits learning efficiency \cite{vygotsky1978}. Without continuous adaptation based on student performance, assessments remain rigid and unable to reflect the dynamic nature of learning \cite{mislevy2003}.
 
 Computerized Adaptive Testing (CAT) addresses these limitations by adjusting question difficulty based on ongoing responses \cite{lord1980}. However, most CAT systems rely on Item Response Theory (IRT), requiring large-scale pre-calibrated item banks and statistically validated parameters \cite{hambleton1985}. This limits applicability in smaller settings and makes question selection difficult to interpret for educators.
 
@@ -74,7 +76,7 @@ This paper proposes an Adaptive Multi-Agent MCQ Difficulty Prediction System wit
 Multi-Agent Systems (MAS) have gained significant attention in educational technology \cite{wooldridge2009}. Outay \textit{et al.} \cite{outay2024} proposed the APOT model with four agents: the \textbf{LSAA} (Learning Style Assessment Agent), evaluating learner modality preferences; the \textbf{SOLMA} (Stage of Learning Monitoring Agent), monitoring current performance; the \textbf{SOLPA} (Stage of Learning Prediction Agent), predicting learner potential; and the \textbf{SOLTA} (Stage of Learning Transition Agent), determining competency stage transitions. These agents compute a Learning Index (LI) and Competency Index (CI) to track progress. However, their framework targets vocational AR training, limiting applicability to digital question-based assessment \cite{outay2024}. Our work adapts the APOT philosophy to a question-driven setting, replacing quantitative KPIs with LLM-based reasoning.
 
 \subsection{Computerized Adaptive Testing}
-CAT has been studied extensively since the 1970s \cite{weiss2004}. IRT-based CAT requires large, well-calibrated item banks that are expensive to develop \cite{hambleton1985}. Our approach replaces IRT with LLM-based agents reasoning over observable performance signals using transparent natural language rules.
+CAT has been studied extensively since the 1970s and is widely regarded as a robust method for personalized assessment \cite{weiss2004}. CAT systems typically rely on IRT, where each question is associated with parameters such as difficulty, discrimination, and guessing probability \cite{lord1980}. While statistically rigorous, IRT-based CAT systems require large, well-calibrated item banks that are expensive and time-consuming to develop \cite{hambleton1985}. The probabilistic nature of IRT models also makes them difficult to interpret for educators. Our approach replaces IRT with LLM-based agents that reason over observable performance signals---correctness and time---using transparent natural language rules, offering ease of deployment without sacrificing adaptive responsiveness.
 
 \subsection{LLM-Augmented Assessment Frameworks}
 Recent LLM advances have enabled integration into educational systems for feedback, tutoring, and content creation \cite{chen2023}. Frameworks such as CrewAI \cite{liang2023} and AutoGen facilitate LLM-augmented agent collaboration. Bloom's taxonomy \cite{bloom1956} informs our three-level difficulty scheme (Easy, Medium, Hard). Reinforcement learning \cite{sutton2018} and Bayesian student models \cite{conati2002} offer alternatives but require extensive training data. Unlike prior systems restricting LLMs to feedback only, our system delegates the full assessment pipeline---evaluation, difficulty prediction, and adaptation---to LLM agents.
@@ -109,18 +111,38 @@ A key innovation decouples UI responsiveness from the heavier multi-agent pipeli
 All agents are powered by Gemini 2.5 Flash via CrewAI's LLM interface (temperature 0.7), executing sequentially with context passing between tasks.
 
 \subsection{MCQ Evaluator Agent (SOLMA)}
-The MCQ Evaluator implements \textbf{SOLMA} (Stage of Learning Monitoring Agent), the APOT \textit{Assess} phase. Its role is a strict MCQ examiner: given the question, correct answer, student's answer, and time taken, it determines correctness with a one-line explanation. Configured with \texttt{allow\_delegation=False}, it isolates factual judgment from difficulty reasoning. Input is a structured block containing the question text, correct answer, student answer, and time in seconds. Output is a binary verdict with justification.
+The MCQ Evaluator implements \textbf{SOLMA} (Stage of Learning Monitoring Agent), the APOT \textit{Assess} phase. Just as the original SOLMA monitors a learner's current performance \cite{outay2024}, our agent monitors the student's immediate response quality. Its role is strictly defined as a fair and accurate MCQ examiner: given the question, correct answer, student's answer, and time taken, it determines correctness and provides a one-line explanation. Configured with \texttt{allow\_delegation=False}, it isolates factual judgment from difficulty reasoning.
+
+The agent's task receives a structured input block containing:
+\begin{itemize}
+    \item The question text
+    \item The correct answer
+    \item The student's selected answer
+    \item The time taken in seconds
+\end{itemize}
+Its expected output is a binary correctness verdict with a brief justification, providing the factual foundation for subsequent agents.
 
 \subsection{Difficulty Predictor Agent (SOLPA)}
 The Difficulty Predictor implements \textbf{SOLPA} (Stage of Learning Prediction Agent), the APOT \textit{Predict} phase. It classifies the current question as Easy, Medium, or Hard based on SOLMA's verdict and response time. The backstory encodes: ``Fast + Correct = Easy. Slow + Correct = Medium. Wrong = Hard.'' This mirrors the insight that response time with correctness serves as a behavioral proxy for difficulty \cite{weiss2004}. No hard-coded thresholds are imposed; the LLM interprets ``fast''/``slow'' contextually.
 
 \subsection{Adaptive MCQ Overseer Agent (SOLTA)}
-The Adaptive Overseer implements \textbf{SOLTA} (Stage of Learning Transition Agent), serving both \textit{Oversee} and \textit{Transit} phases. It receives SOLMA and SOLPA outputs as context, producing: (1) confirmed current difficulty, and (2) recommended next difficulty. Its backstory encodes adaptive rules grounded in the Zone of Proximal Development \cite{vygotsky1978} and Bloom's taxonomy \cite{bloom1956}:
+The Adaptive Overseer implements \textbf{SOLTA} (Stage of Learning Transition Agent), serving both \textit{Oversee} and \textit{Transit} phases. Where the original SOLTA determines when and how a learner should transition between competency stages \cite{outay2024}, our agent determines when and how to transition between difficulty levels. It receives SOLMA and SOLPA outputs as context, producing: (1) confirmed current difficulty, and (2) recommended next difficulty. Its backstory encodes adaptive rules grounded in the Zone of Proximal Development \cite{vygotsky1978} and Bloom's taxonomy \cite{bloom1956}:
 
-\textbf{Correct:} Easy$\rightarrow$Medium; Medium$\rightarrow$Hard; Hard$\rightarrow$Hard or Medium.
-\textbf{Incorrect:} Hard$\rightarrow$Medium; Medium$\rightarrow$Easy; Easy$\rightarrow$Easy.
+\textbf{If the answer is correct:}
+\begin{itemize}
+    \item Easy $\rightarrow$ Next: Medium (increase challenge)
+    \item Medium $\rightarrow$ Next: Hard (advance to next level)
+    \item Hard $\rightarrow$ Next: Hard or Medium (maintain mastery)
+\end{itemize}
 
-Configured with \texttt{allow\_delegation=True}, its output follows a structured format parsed line-by-line via keyword matching, with ``Medium'' defaults on failure:
+\textbf{If the answer is incorrect:}
+\begin{itemize}
+    \item Hard $\rightarrow$ Next: Medium (step down one level)
+    \item Medium $\rightarrow$ Next: Easy (step down one level)
+    \item Easy $\rightarrow$ Next: Easy (stay at same level for confidence building)
+\end{itemize}
+
+Configured with \texttt{allow\_delegation=True}, the agent can consult prior agents if additional clarification is needed. Its output follows a structured natural language format parsed line-by-line via keyword matching, with ``Medium'' defaults on failure:
 
 \begin{verbatim}
 Questions Difficulty: [Easy/Medium/Hard]
@@ -159,20 +181,26 @@ Time Taken by Student: <seconds> seconds
 This captures factual correctness and response efficiency. Per-question timing is measured client-side via \texttt{Date.now()} differencing, with a default of 30 seconds when omitted.
 
 \subsection{Agent Prompt Design}
-Each agent's behavior is governed by \texttt{role}, \texttt{goal}, and \texttt{backstory} fields functioning as the system prompt for Gemini. For SOLPA, the backstory encodes the time-correctness heuristic eliminating IRT parameter estimation. For SOLTA, it encodes the full bidirectional transition table aligned with the ZPD \cite{vygotsky1978}.
+Each agent's behavior in CrewAI is governed by three natural language fields: \texttt{role}, \texttt{goal}, and \texttt{backstory}. These fields function as the system prompt for the underlying Gemini model, shaping its reasoning approach for each task. The role defines the agent's identity within the APOT pipeline, the goal specifies its objective, and the backstory provides the contextual knowledge and heuristics the agent should apply.
+
+For the SOLPA agent (Difficulty Predictor), the backstory explicitly encodes the time-correctness heuristic: ``Fast + Correct = Easy question. Slow + Correct = Medium. Wrong = Hard.'' This concise rule set mirrors the psychometric intuition behind time-aware adaptive testing \cite{weiss2004} and eliminates the need for IRT parameter estimation.
+
+For the SOLTA agent (Adaptive MCQ Overseer), the backstory encodes the full bidirectional transition table (increase on success, decrease on failure) aligned with the Zone of Proximal Development concept \cite{vygotsky1978}, ensuring the system keeps students within their optimal challenge zone.
 
 \subsection{Robustness Mechanisms}
-The system employs: API key validation returning canned ``Medium''/``Medium'' on failure; retry logic with backoff of $(attempt+1) \times 2$ seconds for transient errors (503, 429, 500) up to 3 retries; stub fallback questions on total failure; and thread-safe DB connection cleanup in background threads.
+The system employs multiple fallback strategies to ensure uninterrupted operation. On API key failure, the pipeline returns a canned ``Medium''/``Medium'' result with reasoning ``Using default difficulty due to API key issue,'' ensuring the test session is never interrupted. The question generation module retries transient errors (HTTP 503, 429, 500, and messages containing ``UNAVAILABLE'', ``overloaded'', or ``high demand'') up to 3 times with exponential-like backoff of $(attempt+1) \times 2$ seconds. If all retries and JSON parsing fail, a stub fallback question is returned to prevent test interruption. The background CrewAI thread explicitly closes its thread-local Django database connection in a \texttt{finally} block to prevent connection leaks from the daemon thread performing ORM writes.
 
-\subsection{Session Management}
-Each session is identified by a UUID linking transient \texttt{request.session} state with the durable \texttt{StudentTestResult} record. Status transitions follow: \texttt{in\_progress} $\rightarrow$ \texttt{completed} (submit) $|$ \texttt{auto\_submitted} (beacon) $|$ \texttt{expired} (exit). Fullscreen enforcement blocks the UI until opt-in. A skip-revisit mechanism defers questions for later completion.
+\subsection{Session Management and Test Integrity}
+Each test session is identified by a UUID (\texttt{assessment\_id}) linking the transient session state stored in \texttt{request.session} with the durable \texttt{StudentTestResult} record in MySQL. The session stores the dynamically generated question list, current index, answer history, skipped indices, difficulty progression, and timer state. Status transitions follow a controlled state machine: \texttt{in\_progress} transitions to \texttt{completed} on explicit submission, to \texttt{auto\_submitted} when \texttt{navigator.sendBeacon} fires on tab closure, or to \texttt{expired} when the student clicks the Exit button.
+
+A fullscreen enforcement gate blocks the test UI behind an overlay until the student explicitly enters fullscreen mode. A skip-question revisit mechanism allows students to defer questions: skipped indices are stored and revisited after the linear pass completes, interleaving forward progress with deferred-item completion. The 20-minute timer is enforced both on the frontend via a JavaScript countdown and on the backend by recomputing elapsed time from the stored \texttt{start\_time} on each request.
 
 % -------------------------------------------------------
 \section{System Analysis and Discussion}
 % -------------------------------------------------------
 
 \subsection{Agent Role Separation and Pipeline Integrity}
-The three-agent design enforces separation of concerns mirroring the APOT model \cite{outay2024}. SOLMA handles only factual comparison; SOLPA applies psychometric heuristics without considering adaptation; SOLTA alone integrates all inputs for transition recommendations. Table~\ref{tab:agent_roles} summarizes the mapping.
+The three-agent design enforces a separation of concerns that directly mirrors the APOT model's staged reasoning \cite{outay2024}. The SOLMA agent (Evaluator) handles only factual comparison, ensuring correctness determination is isolated from any difficulty reasoning. The SOLPA agent (Predictor) applies psychometric heuristics exclusively to the current question, without considering adaptation goals. The SOLTA agent (Overseer) alone integrates correctness, difficulty prediction, and adaptive rules to produce actionable transition recommendations. This staged design prevents conflation of concerns and makes each agent's reasoning independently auditable. Table~\ref{tab:agent_roles} summarizes the mapping.
 
 \begin{table}[htbp]
 \caption{APOT Phase and Agent Mapping to CrewAI Implementation}
@@ -258,23 +286,27 @@ Slow+Incorrect & No  & 55s & Hard   & Medium \\
 \end{tabular}
 \end{table}
 
-The system escalates difficulty for fast correct answers, assigns Medium for slow correct answers, and steps down for all incorrect answers regardless of speed.
+The trace demonstrates that the system correctly escalates difficulty for students who answer quickly and correctly, reflecting mastery of easy material. Students who answer slowly but correctly are placed at Medium difficulty, reflecting effortful but successful performance. Students who answer incorrectly---regardless of speed---are classified as facing Hard questions and are stepped down, consistent with the adaptive rule set. This behavior aligns with Vygotsky's Zone of Proximal Development \cite{vygotsky1978}, keeping the student at the boundary of their current capability while preventing both excessive frustration and insufficient challenge.
 
-\subsection{Competency Analytics}
-Beyond per-question adaptation, the dashboard computes a Competency Index (CI) as a weighted average over the ten most recent tests with harmonic weights (1/rank), giving recent performance greater influence. Per-domain accuracy (Aptitude, Reasoning, Verbal) is tracked independently with competency bands: Expert ($\geq$85), Advanced ($\geq$70), Intermediate ($\geq$50), Beginner ($<$50). Three persistence models provide a complete audit trail from individual responses to aggregate competency profiles.
+\subsection{Competency Analytics and Data Models}
+Beyond per-question adaptation, the system provides longitudinal competency tracking. The dashboard computes a Competency Index (CI) as a weighted average over the ten most recent completed tests with harmonic weights (weight = 1/rank), ensuring recent performance has greater influence over historical averages. Per-domain accuracy (Aptitude, Reasoning, Verbal) is tracked independently, and the weakest domain is identified for targeted feedback. Competency bands are assigned on the leaderboard: Expert ($\geq$85), Advanced ($\geq$70), Intermediate ($\geq$50), and Beginner ($<$50).
+
+The persistence layer comprises three interconnected models providing a complete audit trail. \texttt{StudentTestResult} stores session-level metadata: user, topic, initial and final difficulty, score percentage (auto-computed), status, timestamps, and JSON fields for answers data, adaptive analysis, and difficulty progression. \texttt{QuestionPerformance} stores per-question details: question text, options, selected and correct answers, time taken, AI-predicted difficulty, recommended next difficulty, and the full CrewAI reasoning and recommendation text, with a unique constraint on (test\_result, question\_number). \texttt{AdaptiveLearningHistory} provides a focused record of the SOLTA pipeline output per question: current and next difficulty, correctness, time taken, and the agent's reasoning.
 
 \subsection{Advantages of LLM-Native Adaptation}
-Delegating difficulty reasoning to LLM agents offers: (1) natural language maintainability---rules are modified in prompts without rewriting code; (2) contextual nuance---SOLPA interprets ``fast''/``slow'' without hard thresholds; (3) explainability---full reasoning chains support APOT audit goals \cite{outay2024}; (4) zero pre-calibration---deployable without item bank construction \cite{hambleton1985}; (5) dynamic question generation eliminating the traditional bottleneck entirely. The trade-off of LLM non-determinism is mitigated by structured output parsing, ``Medium'' defaults, and the synchronous rule-based fallback layer.
+A key design decision is the delegation of all difficulty reasoning to LLM agents rather than deterministic formulas. This offers several advantages. First, the adaptation rules can be expressed and modified entirely in natural language without rewriting scoring code, improving maintainability. Second, the agents can incorporate contextual nuance---such as recognizing borderline cases in time thresholds---that rigid numeric formulas cannot express; SOLPA interprets ``fast'' and ``slow'' contextually rather than through hard-coded second boundaries. Third, the full reasoning chain is available in the agent output, providing educators with a natural language explanation for every difficulty decision, directly supporting the explainability goals outlined in the APOT framework \cite{outay2024}. Fourth, eliminating pre-calibrated IRT parameters makes the system deployable in any domain without prior item bank construction \cite{hambleton1985}. Fifth, the LLM-driven question generation eliminates the traditional bottleneck entirely---new domains require only a topic name and difficulty level to operate, with no pilot testing or statistical calibration.
+
+The primary trade-off is the non-determinism inherent in LLM outputs, which means identical inputs may occasionally produce slightly different outputs. This is mitigated by the structured output format enforced through task descriptions, the line-by-line keyword parsing with hard ``Medium'' defaults on failure, and critically by the synchronous rule-based fallback layer that guarantees deterministic behavior for the real-time question selection path.
 
 % -------------------------------------------------------
 \section{Conclusion and Future Work}
 % -------------------------------------------------------
 
-This paper presented an Adaptive Multi-Agent MCQ Difficulty Prediction System that operationalizes the APOT framework \cite{outay2024} in a fully LLM-driven adaptive testing context. By mapping SOLMA (Stage of Learning Monitoring Agent), SOLPA (Stage of Learning Prediction Agent), and SOLTA (Stage of Learning Transition Agent) to three CrewAI agents powered by Gemini 2.5 Flash, the system replaces deterministic scoring and IRT pre-calibration with prompt-engineered LLM reasoning. The LSAA (Learning Style Assessment Agent) function is realized through domain-aware question generation across Reasoning, Aptitude, and Verbal Ability.
+This paper presented an Adaptive Multi-Agent MCQ Difficulty Prediction System that operationalizes the APOT framework \cite{outay2024} in a fully LLM-driven adaptive testing context. By mapping SOLMA (Stage of Learning Monitoring Agent), SOLPA (Stage of Learning Prediction Agent), and SOLTA (Stage of Learning Transition Agent) to three CrewAI agents powered by Gemini 2.5 Flash, the system replaces deterministic scoring and IRT pre-calibration with prompt-engineered LLM reasoning over answer correctness and response time. The LSAA (Learning Style Assessment Agent) function is realized through domain-aware question generation across Reasoning, Aptitude, and Verbal Ability.
 
-The dual-layer architecture demonstrates that production-grade adaptive testing can coexist with computationally intensive LLM pipelines. Design-level analysis confirms complete transition-space coverage, logically consistent behavior, and a natural language audit trail for every difficulty decision.
+The dual-layer architecture---combining a synchronous rule-based fallback for real-time responsiveness with an asynchronous multi-agent AI pipeline for rich post-assessment insights---demonstrates that production-grade adaptive testing can coexist with computationally intensive LLM pipelines. The LLM-driven dynamic question generation eliminates the traditional requirement for pre-curated, statistically validated item banks. Design-level analysis confirms complete transition-space coverage, logically consistent behavior across representative performance scenarios, and a natural language audit trail for every difficulty decision. The system demonstrates that LLM-native multi-agent architectures can implement adaptive testing logic that is simultaneously interpretable, deployable without pre-calibrated item banks, and extensible through simple prompt modification.
 
-Future work will focus on: (1)~user studies to validate LLM-predicted difficulty against expert annotations; (2)~extending LSAA with explicit learning-style profiling; (3)~integrating session-level memory for cross-question tracking by SOLTA; (4)~prompt optimization to reduce output variability; (5)~comparing LLM-based decisions against IRT ground truth; and (6)~deploying for concurrent multi-user sessions with instructor dashboards.
+Future work will focus on: (1)~conducting user studies with diverse student populations to empirically validate the accuracy of LLM-predicted difficulty labels against expert annotations; (2)~extending the LSAA function with an explicit learning-style profiling agent that adapts question format based on detected learner preferences; (3)~integrating session-level memory (\texttt{memory=True} in CrewAI) to enable cross-question performance tracking and long-horizon difficulty planning by SOLTA; (4)~exploring prompt optimization techniques to reduce LLM output variability and improve structured output reliability; (5)~comparing LLM-based adaptation decisions against IRT-based ground truth on standardized item banks to quantify agreement rates; and (6)~deploying for concurrent multi-user assessment sessions with real-time difficulty dashboards for instructors, leveraging the Celery and Redis infrastructure already present in the technology stack.
 
 \begin{thebibliography}{00}
 
