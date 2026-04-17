@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test in Progress - {{ topic|title }} ({{ difficulty|title }})</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4fe;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── Exit modal action buttons (shared style) ── */
+        .fs-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .fs-btn {
+            padding: 14px 32px; border: none; border-radius: 10px;
+            font-size: 1rem; font-weight: 700; cursor: pointer;
+        }
+        .fs-btn-resume { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; }
+        .fs-btn-exit   { background: #f44336; color: #fff; }
+
+        /* ── Main container ── */
+        .container {
+            max-width: 900px; margin: 0 auto;
+            background: white; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            overflow: hidden;
+            animation: slideIn 0.4s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 20px 30px;
+        }
+        .header-top {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px;
+        }
+        .header h1 { font-size: 22px; }
+
+        .info-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .topic-badge {
+            background: rgba(255,255,255,0.2); padding: 5px 12px;
+            border-radius: 20px; font-size: 14px;
+        }
+        .skip-badge {
+            background: rgba(255,200,0,0.25); padding: 5px 12px;
+            border-radius: 20px; font-size: 13px; color: #ffe48d;
+        }
+        .timer {
+            background: rgba(0,0,0,0.3); padding: 8px 15px;
+            border-radius: 25px; font-family: monospace;
+            font-size: 24px; font-weight: bold;
+        }
+        .timer.warning { background: #f44336; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.05)} }
+
+        .progress-bar  { background: rgba(255,255,255,0.2); height:6px; margin-top:14px; border-radius:3px; overflow:hidden; }
+        .progress-fill { background: #4caf50; height:100%; transition:width 0.3s ease; }
+
+        .question-container { padding: 36px 40px; }
+
+        .question-header {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 24px; padding-bottom: 14px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .question-number { font-size: 17px; color: #667eea; font-weight: bold; }
+        .skipped-tag {
+            font-size: 13px; background: #fff3cd; color: #856404;
+            padding: 3px 10px; border-radius: 20px; margin-left: 8px;
+        }
+
+        .question-text { font-size: 20px; line-height: 1.6; margin-bottom: 28px; color: #333; }
+
+        .options { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+        .option {
+            display: flex; align-items: center; padding: 15px;
+            background: #f8f9fa; border: 2px solid #e0e0e0;
+            border-radius: 10px; cursor: pointer; transition: all 0.25s ease;
+        }
+        .option:hover  { background:#e3f2fd; border-color:#667eea; transform:translateX(4px); }
+        .option.selected { background:#e3f2fd; border-color:#667eea; box-shadow:0 4px 14px rgba(102,126,234,0.2); }
+        .option-radio  { margin-right: 15px; width:20px; height:20px; cursor:pointer; }
+        .option-text   { flex:1; font-size:16px; cursor:pointer; }
+
+        /* ── Three-button action row ── */
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .btn-exit {
+            padding: 14px;
+            background: #fff; border: 2px solid #f44336;
+            color: #f44336; border-radius: 10px;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-exit:hover { background: #f44336; color: #fff; }
+
+        .btn-submit {
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px;
+            font-size: 17px; font-weight: bold; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn-submit:hover  { transform: translateY(-2px); box-shadow:0 5px 20px rgba(102,126,234,0.4); }
+        .btn-submit:disabled { background:#ccc; cursor:not-allowed; transform:none; }
+
+        .btn-skip {
+            padding: 14px;
+            background: #fff; border: 2px solid #ff9800;
+            color: #ff9800; border-radius: 10px;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-skip:hover { background: #ff9800; color: #fff; }
+
+        .loading { text-align:center; padding:20px; display:none; }
+        .spinner {
+            border:3px solid #f3f3f3; border-top:3px solid #667eea;
+            border-radius:50%; width:40px; height:40px;
+            animation: spin 1s linear infinite; margin:0 auto;
+        }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+
+        .question-counter { font-size:13px; color:#888; margin-top:14px; text-align:center; }
+
+        @media (max-width:768px) {
+            .question-container { padding:20px; }
+            .question-text { font-size:17px; }
+            .action-row { grid-template-columns:1fr 1fr; }
+            .btn-submit  { grid-column: 1 / -1; order: -1; }
+        }
+        /* ── Toast notifications ── */
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 11000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: #fff; border-radius: 10px; padding: 14px 20px;
+            min-width: 280px; max-width: 400px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            animation: toastIn 0.3s ease; font-size: 14px;
+        }
+        .toast.error   { border-left: 4px solid #f44336; }
+        .toast.success  { border-left: 4px solid #4caf50; }
+        .toast.warning  { border-left: 4px solid #ff9800; }
+        .toast .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
+        .toast.error .toast-icon   { color: #f44336; }
+        .toast.success .toast-icon { color: #4caf50; }
+        .toast.warning .toast-icon { color: #ff9800; }
+        @keyframes toastIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+        #exitConfirmModal {
+            display: none; position: fixed; inset: 0; z-index: 10001;
+            background: rgba(0,0,0,0.85); color: #fff;
+            flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 40px;
+        }
+        #exitConfirmModal h2 { font-size: 1.8rem; margin-bottom: 12px; }
+        #exitConfirmModal p  { font-size: 1.05rem; opacity: 0.85; max-width: 420px; margin-bottom: 28px; line-height: 1.6; }
+    </style>
+</head>
+
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+<div id="exitConfirmModal">
+    <div style="font-size:64px;margin-bottom:16px;">🚪</div>
+    <h2>Exit Test?</h2>
+    <p>Your progress will be lost and this test will be marked as incomplete. Are you sure?</p>
+    <div class="fs-actions">
+        <button class="fs-btn fs-btn-resume" onclick="closeExitModal()">↩ Cancel</button>
+        <button class="fs-btn fs-btn-exit" onclick="confirmExit()">❌ Exit Test</button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     Main test UI
+════════════════════════════════════════════════════════════════ -->
+<div class="container" id="mainContainer">
+    <div class="header">
+        <div class="header-top">
+            <h1>📝 {{ topic|title }} — {{ difficulty }} Test</h1>
+            <div class="timer" id="timer">20:00</div>
+        </div>
+        <div class="info-bar">
+            <div>
+                <span class="topic-badge">📚 {{ topic|title }}</span>
+                <span class="skip-badge" id="skipBadge" style="display:none;">⏭ <span id="skipCount">0</span> skipped</span>
+            </div>
+            <span style="opacity:0.75;font-size:13px;">Q{{ question_number }} / {{ total_questions }}</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width:{{ progress }}%"></div>
+        </div>
+    </div>
+
+    <div class="question-container">
+        <div class="question-header">
+            <span class="question-number">
+                Question {{ question_number }} of {{ total_questions }}
+                {% if is_skipped_revisit %}<span class="skipped-tag">↩ Revisiting</span>{% endif %}
+            </span>
+            <span class="question-number">📊 {{ progress }}% Complete</span>
+        </div>
+
+        <div class="question-text" id="questionText">{{ question.question }}</div>
+
+        <div class="options" id="optionsContainer">
+            {% for option in question.options %}
+            <div class="option" data-value="{{ option }}">
+                <input type="radio" name="answer" value="{{ option }}" class="option-radio" id="option{{ forloop.counter }}">
+                <label for="option{{ forloop.counter }}" class="option-text">{{ option }}</label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Task 3 + Task 4: Three-button row -->
+        <div class="action-row" id="actionContainer">
+            <!-- Task 4 – Exit -->
+            <button type="button" class="btn-exit" id="exitBtn">🚪 Exit</button>
+
+            <!-- Submit (existing logic) -->
+            <button type="button" class="btn-submit" id="nextBtn" disabled>
+                {% if is_last_question %}Save &amp; Proceed to Submit{% else %}Save &amp; Next →{% endif %}
+            </button>
+
+            <!-- Task 3 – Skip -->
+            <button type="button" class="btn-skip" id="skipBtn">⏭ Skip</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top:10px;color:#666;">Loading next question…</p>
+        </div>
+        <div class="question-counter" id="qCounter">
+            {{ question_number }} of {{ total_questions }} questions answered
+        </div>
+    </div>
+</div><!-- /#mainContainer -->
+
+<script>
+    // ── Shared state ────────────────────────────────────────────────────────
+    let timeLeft         = {{ time_left }};
+    let timerInterval;
+    let selectedAnswer   = null;
+    let isSubmitting     = false;
+    let questionStartTime = Date.now();
+    let testActive       = false;
+    let testStarted      = false;
+    let navigating       = false;
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function getCookie(name) {
+        let v = null;
+        if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(c => {
+                c = c.trim();
+                if (c.startsWith(name + '='))
+                    v = decodeURIComponent(c.substring(name.length + 1));
+            });
+        }
+        return v;
+    }
+
+    function showLoading() {
+        document.getElementById('nextBtn').style.display = 'none';
+        document.getElementById('skipBtn').style.display = 'none';
+        document.getElementById('exitBtn').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+    }
+    function hideLoading() {
+        document.getElementById('nextBtn').style.display = '';
+        document.getElementById('skipBtn').style.display = '';
+        document.getElementById('exitBtn').style.display = '';
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    function showToast(type, message) {
+        const container = document.getElementById('toastContainer');
+        const icons = { error: '❌', success: '✅', warning: '⚠️' };
+        const toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.innerHTML =
+            '<span class="toast-icon">' + (icons[type] || '❌') + '</span>' +
+            '<span>' + escapeHtml(message) + '</span>';
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 4000);
+        setTimeout(() => toast.remove(), 4400);
+    }
+
+    // ── Auto-start test on page load ─────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+        testActive        = true;
+        testStarted       = true;
+        questionStartTime = Date.now();
+        startTimer();
+    });
+
+    // ── Exit test with confirmation ─────────────────────────────────────────
+    function showExitModal() {
+        document.getElementById('exitConfirmModal').style.display = 'flex';
+    }
+    function closeExitModal() {
+        document.getElementById('exitConfirmModal').style.display = 'none';
+    }
+    async function confirmExit() {
+        if (!testActive) { window.location.href = '/test_history/'; return; }
+        testActive = false;
+        clearInterval(timerInterval);
+        try {
+            await fetch('/exit_test/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ reason: 'user_exit' })
+            });
+        } catch(_) {}
+        window.location.href = '/test_history/';
+    }
+
+    // ── Beacon auto-submit on tab close ─────────────────────────────────────
+    function beaconAutoSubmit() {
+        if (!testActive) return;
+        const data = new Blob([JSON.stringify({ reason: 'page_leave' })], { type: 'application/json' });
+        navigator.sendBeacon('/auto_submit_test/', data);
+        testActive = false;
+    }
+    window.addEventListener('beforeunload', () => { if (testActive) beaconAutoSubmit(); });
+
+    // ── Timer ────────────────────────────────────────────────────────────────
+    function startTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+        updateTimer();
+    }
+    function updateTimer() {
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            testActive = false;
+            showToast('warning', "Time's up! Your test has been auto-submitted.");
+            setTimeout(() => { window.location.href = '/test_history/'; }, 1500);
+            return;
+        }
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        document.getElementById('timer').textContent =
+            `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        if (timeLeft <= 300) document.getElementById('timer').classList.add('warning');
+        timeLeft--;
+    }
+
+    // ── Option selection (event delegation – works on dynamic options) ────────
+    document.getElementById('optionsContainer').addEventListener('click', function(e) {
+        const optionDiv = e.target.closest('.option');
+        if (!optionDiv) return;
+        const radio = optionDiv.querySelector('.option-radio');
+        if (!radio) return;
+        radio.checked = true;
+        selectedAnswer = radio.value;
+        document.querySelectorAll('#optionsContainer .option').forEach(o => o.classList.remove('selected'));
+        optionDiv.classList.add('selected');
+        document.getElementById('nextBtn').disabled = false;
+    });
+
+    // ── DOM update (no page reload) ──────────────────────────────────────────
+    function updateQuestionUI(data) {
+        const qNum   = data.next_question_number;
+        const total  = data.total;
+        const qData  = data.question_data;
+
+        const questionTextEl = document.getElementById('questionText');
+        if (qData && qData.question && questionTextEl) {
+            questionTextEl.textContent = qData.question;
+        }
+
+        const container = document.getElementById('optionsContainer');
+        if (container && qData && Array.isArray(qData.options) && qData.options.length) {
+            container.innerHTML = qData.options.map((opt, i) => `
+                <div class="option" data-value="${escapeHtml(opt)}">
+                    <input type="radio" name="answer" value="${escapeHtml(opt)}"
+                           class="option-radio" id="option${i + 1}">
+                    <label for="option${i + 1}" class="option-text">${escapeHtml(opt)}</label>
+                </div>
+            `).join('');
+        }
+
+        selectedAnswer = null;
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.disabled = true;
+
+        const qNumSpan = document.querySelector('.question-number');
+        if (qNumSpan) {
+            qNumSpan.innerHTML =
+                `Question ${qNum} of ${total}` +
+                (data.is_skipped_revisit ? ' <span class="skipped-tag">↩ Revisiting</span>' : '');
+        }
+
+        const allQNumSpans = document.querySelectorAll('.question-number');
+        if (allQNumSpans && allQNumSpans[1]) allQNumSpans[1].textContent = `📊 ${data.progress}% Complete`;
+
+        const fill = document.getElementById('progressFill');
+        if (fill) fill.style.width = (data.progress || 0) + '%';
+
+        const infoQSpan = document.querySelector('.info-bar span:last-child');
+        if (infoQSpan) infoQSpan.textContent = `Q${qNum} / ${total}`;
+
+        const skipped = data.skipped_count || 0;
+        const skipBadge = document.getElementById('skipBadge');
+        const skipCount = document.getElementById('skipCount');
+        if (skipBadge) {
+            skipBadge.style.display = skipped > 0 ? '' : 'none';
+        }
+        if (skipCount && skipped > 0) {
+            skipCount.textContent = skipped;
+        }
+
+        const counter = document.getElementById('qCounter');
+        if (counter) counter.textContent = `${(qNum || 1) - 1} of ${total} questions answered`;
+
+        if (nextBtn) {
+            const isLast = qNum === total;
+            nextBtn.innerHTML = isLast ? 'Save &amp; Proceed to Submit' : 'Save &amp; Next →';
+        }
+
+        const qContainer = document.querySelector('.question-container');
+        if (qContainer) qContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        questionStartTime = Date.now();
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    // ── Button delegation ────────────────────────────────────────────────────
+    document.getElementById('actionContainer').addEventListener('click', function(e) {
+        if (e.target.closest('#nextBtn') && !e.target.closest('#nextBtn').disabled) {
+            saveAndNext();
+        } else if (e.target.closest('#skipBtn')) {
+            doSkip();
+        } else if (e.target.closest('#exitBtn')) {
+            showExitModal();
+        }
+    });
+
+    // ── FIX: Retry helper — retries the fetch if question_data is null ──────
+    async function fetchWithRetry(url, body, retries = 2) {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) {
+                    throw new Error(`Server error ${res.status}`);
+                }
+                const data = await res.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Server returned unsuccessful status');
+                }
+
+                // If question_data is null and test is not complete, retry
+                if (!data.is_complete && !data.question_data && attempt < retries) {
+                    console.log(`question_data is null, retrying (${attempt+1}/${retries})...`);
+                    showToast('warning', 'Generating question... please wait.');
+                    await new Promise(r => setTimeout(r, 3000)); // wait 3 seconds
+                    continue;
+                }
+
+                return data;
+            } catch (err) {
+                if (attempt < retries) {
+                    console.log(`Fetch error, retrying (${attempt+1}/${retries}):`, err.message);
+                    showToast('warning', 'Connection issue, retrying...');
+                    await new Promise(r => setTimeout(r, 2000));
+                    continue;
+                }
+                throw err;
+            }
+        }
+    }
+
+    // ── Skip question ────────────────────────────────────────────────────────
+    async function doSkip() {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        showLoading();
+        try {
+            const data = await fetchWithRetry('/skip_question/', {});
+
+            if (data.is_complete) {
+                navigating = true;
+                clearInterval(timerInterval);
+                testActive = false;
+                window.location.href = '/test_ready_to_submit/{{ topic }}/{{ difficulty }}/';
+            } else if (data.question_data) {
+                navigating = true;
+                hideLoading();
+                updateQuestionUI(data);
+                isSubmitting = false;
+                setTimeout(() => { navigating = false; }, 100);
+            } else {
+                // Still null after retries — reload the page as last resort
+                showToast('error', 'Could not load next question. Reloading...');
+                setTimeout(() => { window.location.reload(); }, 1500);
+            }
+        } catch(err) {
+            console.error('Skip error:', err);
+            showToast('error', 'Unable to skip. Please try again.');
+            hideLoading();
+            isSubmitting = false;
+        }
+    }
+
+    // ── Save answer & advance ────────────────────────────────────────────────
+    async function saveAndNext() {
+        if (!selectedAnswer) { showToast('warning', 'Please select an answer before proceeding!'); return; }
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+        document.getElementById('nextBtn').disabled = true;
+        showLoading();
+
+        try {
+            const data = await fetchWithRetry('/save_answer/', {
+                answer: selectedAnswer,
+                time_taken: timeTaken
+            });
+
+            if (data.is_complete) {
+                navigating = true;
+                clearInterval(timerInterval);
+                testActive = false;
+                window.location.href = '/test_ready_to_submit/{{ topic }}/{{ difficulty }}/';
+            } else if (data.question_data) {
+                navigating = true;
+                hideLoading();
+                updateQuestionUI(data);
+                isSubmitting = false;
+                setTimeout(() => { navigating = false; }, 100);
+            } else {
+                // Still null after retries — reload as last resort
+                showToast('error', 'Could not load next question. Reloading...');
+                setTimeout(() => { window.location.reload(); }, 1500);
+            }
+        } catch(err) {
+            console.error('Network error:', err);
+            showToast('error', 'Network error. Please check your connection or try again.');
+            hideLoading();
+            document.getElementById('nextBtn').disabled = false;
+            isSubmitting = false;
+        }
+    }
+
+    // Enter key shortcut
+    document.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && selectedAnswer && !isSubmitting) saveAndNext();
+    });
+
+    console.log('Test ready | Topic: {{ topic }} | Q{{ question_number }}/{{ total_questions }}');
+</script>
+</body>
+</html>
