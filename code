@@ -10,19 +10,6 @@
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{algorithm}
-\usepackage{listings}
-
-\lstset{
-  basicstyle=\ttfamily\footnotesize,
-  breaklines=true,
-  columns=fullflexible,
-  frame=single,
-  xleftmargin=4pt,
-  xrightmargin=4pt,
-  aboveskip=6pt,
-  belowskip=6pt,
-  showstringspaces=false
-}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -190,136 +177,14 @@ This section describes the concrete setup we used during development and deploym
 \subsection{Development and Deployment Environment}
 The system was developed on a laptop running Ubuntu 22.04 LTS with an Intel Core i5 processor and 16~GB of RAM, and was also tested on Windows 11 to confirm portability. The server-side stack uses Python 3.11, Django 4.2.11, and MySQL 8.0.36 (accessed via \texttt{mysqlclient}). The CrewAI version is 0.28.x, and the Google Generative AI SDK (\texttt{google-generativeai}) is pinned to version 0.7.x for stability. Supporting packages include \texttt{python-dotenv} for configuration, \texttt{redis-py} for the optional Celery queue (not used in the default synchronous deployment), and \texttt{gunicorn} as the WSGI server when deployed behind Nginx. Development was done in VS Code; deployment was tested on a small DigitalOcean droplet (2 vCPU, 4~GB RAM) which turned out to be more than enough for single-user load.
 
-\subsection{Representative Agent Configuration}
-Listing~\ref{lst:agents} shows a simplified version of the CrewAI agent definitions. The actual code has more comments and guard logic but follows the same shape.
-
-\begin{lstlisting}[language=Python,caption={Simplified CrewAI agent setup.},label={lst:agents}]
-from crewai import Agent, Task, Crew, Process, LLM
-
-llm = LLM(
-    model="gemini/gemini-2.5-flash",
-    temperature=0.7,
-    api_key=GEMINI_API_KEY,
-)
-
-evaluator = Agent(
-    role="MCQ Evaluator",
-    goal="Decide whether the student's answer "
-         "is correct and explain briefly.",
-    backstory=(
-        "You are a fair and accurate examiner. "
-        "Compare the student's choice to the "
-        "correct answer and return a clear "
-        "verdict with a short justification."
-    ),
-    llm=llm,
-    allow_delegation=False,
-    verbose=False,
-)
-
-predictor = Agent(
-    role="Difficulty Predictor",
-    goal="Classify the question as Easy, "
-         "Medium, or Hard.",
-    backstory=(
-        "Use this heuristic: "
-        "Fast + Correct = Easy. "
-        "Slow + Correct = Medium. "
-        "Wrong = Hard. "
-        "Read 'fast' and 'slow' in context."
-    ),
-    llm=llm,
-    allow_delegation=False,
-)
-
-overseer = Agent(
-    role="Adaptive MCQ Overseer",
-    goal="Confirm current difficulty and "
-         "recommend the next one.",
-    backstory=OVERSEER_RULES,  # ZPD + Bloom rules
-    llm=llm,
-    allow_delegation=True,
-)
-\end{lstlisting}
+\subsection{Agent Configuration}
+All three agents are instantiated through CrewAI's \texttt{Agent} class, with Gemini 2.5 Flash wired in via the \texttt{LLM} interface at temperature 0.7. The MCQ Evaluator Agent and Difficulty Predictor Agent both run with \texttt{allow\_delegation=False} so their reasoning stays scoped to their own task, while the Adaptive MCQ Overseer Agent runs with \texttt{allow\_delegation=True} so it can loop back to the earlier agents for clarification if needed. Each agent's role, goal, and backstory fields carry the natural-language specification described in Section~IV.
 
 \subsection{Task Wiring and Pipeline Kickoff}
-The three tasks are linked so that the overseer can read both earlier outputs via CrewAI's \texttt{context} parameter. Listing~\ref{lst:tasks} captures the essential wiring.
-
-\begin{lstlisting}[language=Python,caption={Task definitions and crew kickoff.},label={lst:tasks}]
-task1 = Task(
-    description=f"""
-    Evaluate the following response:
-    Question: {question_text}
-    Correct Answer: {correct_answer}
-    Student Selected Answer: {student_answer}
-    Time Taken by Student: {time_taken} seconds
-    Return: verdict (correct/incorrect)
-    and a one-line justification.
-    """,
-    agent=evaluator,
-    expected_output="Verdict + justification",
-)
-
-task2 = Task(
-    description="Classify the question as "
-                "Easy, Medium, or Hard based on "
-                "correctness and time.",
-    agent=predictor,
-    expected_output="One of: Easy | Medium | Hard",
-)
-
-task3 = Task(
-    description=OVERSEER_TASK_TEMPLATE,
-    agent=overseer,
-    context=[task1, task2],
-    expected_output=(
-        "Questions Difficulty, "
-        "Next Question Difficulty, "
-        "Reasoning, Recommendation."
-    ),
-)
-
-crew = Crew(
-    agents=[evaluator, predictor, overseer],
-    tasks=[task1, task2, task3],
-    process=Process.sequential,
-    memory=False,
-    max_rpm=10,
-)
-
-result = crew.kickoff()
-\end{lstlisting}
+The three tasks are chained through CrewAI's \texttt{context} parameter, with the overseer task declaring \texttt{context=[task1, task2]} so it can read both earlier outputs. The crew is assembled with \texttt{Process.sequential}, \texttt{memory=False}, and \texttt{max\_rpm=10} to stay within Gemini's free-tier rate limit. A single \texttt{crew.kickoff()} call runs the whole pipeline and returns the overseer's output as a string, which is then parsed line-by-line.
 
 \subsection{Question Generation Prompt}
-Questions are generated on demand through a direct \texttt{google-generativeai} call rather than through a CrewAI agent, since generation is not part of the APOT reasoning loop. The prompt enforces a strict JSON schema so parsing is predictable. Listing~\ref{lst:genprompt} gives a trimmed version.
-
-\begin{lstlisting}[caption={MCQ generation prompt (trimmed).},label={lst:genprompt}]
-Generate exactly ONE multiple choice question
-for the topic "{topic}" at "{difficulty}"
-difficulty level.
-
-Constraints:
-- Four options labelled A, B, C, D
-- Exactly one correct answer
-- No duplicated or ambiguous options
-- Avoid questions already asked in this
-  session: {asked_questions_summary}
-
-Return ONLY valid JSON with this schema:
-{
-  "question": "<text>",
-  "options": {
-    "A": "<text>", "B": "<text>",
-    "C": "<text>", "D": "<text>"
-  },
-  "correct_answer": "A" | "B" | "C" | "D",
-  "difficulty": "Easy" | "Medium" | "Hard",
-  "topic": "<topic>"
-}
-Do not include markdown fences or commentary.
-\end{lstlisting}
-
-The generated text is then stripped of any accidental code fences (\texttt{```json} markers that Gemini occasionally adds despite instructions) before being passed to \texttt{json.loads}.
+Questions are generated on demand through a direct \texttt{google-generativeai} call rather than through a CrewAI agent, since generation is not part of the APOT reasoning loop. The prompt asks for exactly one MCQ at a specified topic and difficulty, with four options labelled A--D, exactly one correct answer, and a list of already-asked questions to avoid in the same session. It also enforces a strict JSON schema (\texttt{question}, \texttt{options}, \texttt{correct\_answer}, \texttt{difficulty}, \texttt{topic}) so parsing is predictable. The generated text is stripped of any accidental code fences (\texttt{```json} markers that Gemini occasionally adds despite instructions) before being passed to \texttt{json.loads}.
 
 \subsection{Step-by-Step Data Flow for One Answer}
 To make the runtime behavior concrete, here is what happens when a student clicks ``Submit'' on question $n$:
