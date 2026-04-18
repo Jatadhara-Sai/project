@@ -75,6 +75,15 @@ The contributions of this work are:
 \subsection{Multi-Agent Systems in Education}
 Multi-Agent Systems (MAS) have been a popular thread in educational technology for a while \cite{wooldridge2009}. The APOT model \cite{outay2024} uses four agents: \textbf{LSAA} for modality preferences, \textbf{SOLMA} to track current performance, \textbf{SOLPA} to predict learner potential, and \textbf{SOLTA} to decide when a learner should move between competency stages. Together they compute a Learning Index and a Competency Index. It's a clean design, but it was shaped around vocational AR training, and the assumptions don't all transfer to digital question-based assessment. In our case, there are no physical KPIs to read---just correctness and time---so each agent reasons in natural language over those two signals, and the LSAA role ends up folded into domain-aware question generation rather than living as a separate modality-profiling agent.
 
+Fig.~\ref{fig:apot_model} illustrates the cyclic APOT stages that form the conceptual basis of our design.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{apot_learning_model.png}
+\caption{The APOT (Assess--Predict--Oversee--Transit) cyclic learning model from Outay \textit{et al.} \cite{outay2024}, showing four stages managed by LSAA, SOLMA, SOLPA, and SOLTA agents. Our system reinterprets these as LLM-powered CrewAI modules.}
+\label{fig:apot_model}
+\end{figure}
+
 \subsection{Computerized Adaptive Testing}
 CAT has been studied since the 1970s and is generally considered a solid way to personalize assessment \cite{weiss2004}. Most CAT systems rest on IRT, where each question carries difficulty, discrimination, and guessing parameters \cite{lord1980}. The approach is statistically rigorous, but the item banks it needs take serious time and money to calibrate \cite{hambleton1985}, and the probabilistic machinery tends to be opaque to educators. Where Lord \cite{lord1980} and Hambleton and Swaminathan \cite{hambleton1985} build selection rules on estimated item parameters, we drop the parameter estimation step entirely and let an LLM agent reason over observable signals using transparent natural language heuristics. The trade-off is non-determinism, which we discuss honestly in Section~\ref{sec:limitations}.
 
@@ -88,24 +97,10 @@ LLMs have made their way into educational systems for feedback, tutoring, and co
 \subsection{Architecture Overview}
 The system is a full-stack web app on Django 4.2 (Python 3.11) backed by MySQL 8.0, organized into five layers. The \textbf{Presentation Layer} (Bootstrap 5.3, vanilla JS) handles question display, answer capture, and the 20-minute countdown, and also enforces a fullscreen gate via the Fullscreen API. A \texttt{navigator.sendBeacon} call auto-submits the test if the tab closes. The \textbf{Controller Layer} (Django views) coordinates the session lifecycle, runs the synchronous rule-based fallback, and spawns the async agent threads. The \textbf{AI/Agent Pipeline Layer} runs the CrewAI pipeline (Evaluator $\rightarrow$ Predictor $\rightarrow$ Overseer) in a daemon thread that talks to Gemini 2.5 Flash through CrewAI's \texttt{LLM} interface. The \textbf{Question Generation Layer} calls Gemini via the \texttt{google-generativeai} SDK to produce MCQs on demand using a strict JSON schema. The \textbf{Data Layer} is three MySQL models: \texttt{StudentTestResult}, \texttt{QuestionPerformance}, and \texttt{AdaptiveLearningHistory}.
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\columnwidth]{architecture_final.png}
-\caption{Three-agent CrewAI pipeline implementing the APOT model.}
-\label{fig:pipeline}
-\end{figure}
-
 \subsection{Assessment Workflow and APOT Mapping}
 Each session runs a per-question adaptive loop over 20 questions. For every question we record the selected option and the time it took. The Evaluator decides whether the answer was right, the Predictor classifies the question's difficulty, and the Overseer looks at both outputs and picks the difficulty for the next question. Three cognitive domains are supported---Reasoning, Aptitude (aliases: Quantitative Aptitude, Quant), and Verbal Ability (aliases: Verbal, English)---with topic normalization keeping the vocabulary consistent.
 
-The original APOT model \cite{outay2024} runs a cyclic Assess, Predict, Oversee, Transit loop, shown in Fig.~\ref{fig:apot_model}. Our mapping: \textit{Assess} becomes the Evaluator Agent (SOLMA role) tracking correctness; \textit{Predict} becomes the Predictor Agent (SOLPA role) classifying difficulty; and both \textit{Oversee} and \textit{Transit} map onto the Overseer Agent (SOLTA role), which synthesizes the earlier analyses and decides on the transition. We don't have a dedicated LSAA-style agent---that function ends up inside domain-aware question generation, since a question-only setting simply doesn't give enough signal to infer learning style the way an AR setup can.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\columnwidth]{apot_learning_model.png}
-\caption{The APOT (Assess--Predict--Oversee--Transit) cyclic learning model from Outay \textit{et al.} \cite{outay2024}, showing four stages managed by LSAA, SOLMA, SOLPA, and SOLTA agents. Our system reinterprets these as LLM-powered CrewAI modules.}
-\label{fig:apot_model}
-\end{figure}
+The original APOT model \cite{outay2024} runs a cyclic Assess, Predict, Oversee, Transit loop (Fig.~\ref{fig:apot_model}). Our mapping: \textit{Assess} becomes the Evaluator Agent (SOLMA role) tracking correctness; \textit{Predict} becomes the Predictor Agent (SOLPA role) classifying difficulty; and both \textit{Oversee} and \textit{Transit} map onto the Overseer Agent (SOLTA role), which synthesizes the earlier analyses and decides on the transition. We don't have a dedicated LSAA-style agent---that function ends up inside domain-aware question generation, since a question-only setting simply doesn't give enough signal to infer learning style the way an AR setup can.
 
 \subsection{Dual-Layer Difficulty Adaptation}
 Decoupling UI responsiveness from the heavier pipeline was a design decision we made early. The \textbf{Synchronous Layer} fires the moment an answer is submitted and applies a deterministic mapping: if correct, Easy$\rightarrow$Medium, Medium$\rightarrow$Hard, Hard$\rightarrow$Hard; if incorrect, Hard$\rightarrow$Medium, Medium$\rightarrow$Easy, Easy$\rightarrow$Easy. The next question is generated at that difficulty and sent back in the JSON response, so the UI updates in under a second. The \textbf{Asynchronous Layer} kicks off a daemon thread that runs the full Evaluator $\rightarrow$ Predictor $\rightarrow$ Overseer pipeline, persists its analysis to \texttt{QuestionPerformance} and \texttt{AdaptiveLearningHistory}, and updates \texttt{final\_difficulty}. The thread closes its DB connection in a \texttt{finally} block so connections don't leak.
@@ -128,7 +123,14 @@ Mapped to the SOLPA role and the APOT \textit{Predict} phase, this agent labels 
 The Overseer plays the SOLTA role and covers both the \textit{Oversee} and \textit{Transit} phases. Where the original SOLTA decides when a learner moves between competency stages \cite{outay2024}, our Overseer decides when and how to move between difficulty levels---which is a direct reflection of how the student's competency is developing. It reads the Evaluator and Predictor outputs as context and produces two things: a confirmed current difficulty, and a recommended next difficulty. Its backstory encodes adaptive rules inspired by the Zone of Proximal Development \cite{vygotsky1978} and Bloom's taxonomy \cite{bloom1956}. On a \textbf{correct} answer: Easy$\rightarrow$Medium, Medium$\rightarrow$Hard, Hard$\rightarrow$Hard (or Medium). On an \textbf{incorrect} answer: Hard$\rightarrow$Medium, Medium$\rightarrow$Easy, Easy$\rightarrow$Easy (to rebuild confidence). We leave \texttt{allow\_delegation=True} on this one so it can check back with the earlier agents if something is ambiguous. The output follows a structured format with four labelled lines (``Questions Difficulty'', ``Next Question Difficulty'', ``Reasoning'', ``Recommendation''), which we parse line-by-line via keyword matching, falling back to ``Medium'' if parsing fails.
 
 \subsection{CrewAI Orchestration}
-The three agents are wired into a single \texttt{Crew} with \texttt{Process.sequential}, \texttt{memory=False}, and \texttt{max\_rpm=10} to stay inside Gemini's free-tier rate limit. Task~3 (the Overseer) declares \texttt{context=[task1, task2]} so it sees both earlier outputs. One \texttt{crew.kickoff()} call runs the whole thing and returns the Overseer's output as a string. Fig.~\ref{fig:pipeline} shows the complete pipeline.
+The three agents are wired into a single \texttt{Crew} with \texttt{Process.sequential}, \texttt{memory=False}, and \texttt{max\_rpm=10} to stay inside Gemini's free-tier rate limit. Task~3 (the Overseer) declares \texttt{context=[task1, task2]} so it sees both earlier outputs. One \texttt{crew.kickoff()} call runs the whole thing and returns the Overseer's output as a string. The complete three-agent pipeline is shown in Fig.~\ref{fig:pipeline}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{architecture_final.png}
+\caption{Three-agent CrewAI pipeline implementing the APOT model.}
+\label{fig:pipeline}
+\end{figure}
 
 % -------------------------------------------------------
 \section{Implementation}
