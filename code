@@ -155,14 +155,7 @@ The Adaptive MCQ Overseer Agent plays the SOLTA (Stage of Learning Transition Ag
     \item Easy $\rightarrow$ Next: Easy (stay at same level for confidence building)
 \end{itemize}
 
-With \texttt{allow\_delegation=True}, the agent can check back with the earlier agents if it needs clarification. Its output follows a structured natural language format that's parsed line-by-line via keyword matching, with ``Medium'' as the default if parsing fails:
-
-\begin{verbatim}
-Questions Difficulty: [Easy/Medium/Hard]
-Next Question Difficulty: [Easy/Medium/Hard]
-Reasoning: [explanation]
-Recommendation: [additional actions]
-\end{verbatim}
+With \texttt{allow\_delegation=True}, the agent can check back with the earlier agents if it needs clarification. Its output follows a structured natural language format with four labelled lines---``Questions Difficulty'', ``Next Question Difficulty'', ``Reasoning'', and ``Recommendation''---each taking Easy, Medium, or Hard (or free text for the latter two). The output is parsed line-by-line via keyword matching, with ``Medium'' as the default if parsing fails.
 
 \subsection{CrewAI Orchestration}
 The three agents are wired together into a \texttt{Crew} with \texttt{Process.sequential}, \texttt{memory=False}, and \texttt{max\_rpm=10}. Task 3 (Adaptive MCQ Overseer Agent) declares \texttt{context=[task1, task2]} so it can see the MCQ Evaluator Agent and Difficulty Predictor Agent outputs. Calling \texttt{crew.kickoff()} runs the pipeline and returns the Adaptive MCQ Overseer Agent's output. Fig.~\ref{fig:pipeline} shows the full pipeline.
@@ -210,16 +203,7 @@ The frontend is deliberately thin. It keeps a single client-side state object ho
 % -------------------------------------------------------
 
 \subsection{Input Representation}
-For each MCQ response, the system builds a structured input string:
-
-\begin{verbatim}
-Question: <question text>
-Correct Answer: <correct option>
-Student Selected Answer: <student option>
-Time Taken by Student: <seconds> seconds
-\end{verbatim}
-
-This captures both the factual correctness and how efficiently the student answered. Per-question timing is measured client-side using \texttt{Date.now()} differencing, defaulting to 30 seconds if it's missing (for example, if the client-side JS fails to emit the value).
+For each MCQ response, the system builds a structured input string containing the question text, the correct option, the student's selected option, and the time taken in seconds, each on its own labelled line. This captures both the factual correctness and how efficiently the student answered. Per-question timing is measured client-side using \texttt{Date.now()} differencing, defaulting to 30 seconds if it's missing (for example, if the client-side JS fails to emit the value).
 
 \subsection{Agent Prompt Design}
 In CrewAI, each agent's behavior is shaped by three natural language fields: \texttt{role}, \texttt{goal}, and \texttt{backstory}. Together, these fields act as the system prompt for the underlying Gemini model and steer how it reasons about each task. The role defines the agent's identity within the APOT pipeline, the goal states what it's trying to achieve, and the backstory supplies the contextual knowledge and heuristics it should apply.
