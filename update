@@ -1,113 +1,55 @@
-1. Add real implementation details (this is the biggest gap)
+Rewrite the following research paper to make it sound like it is written by a human researcher, not AI.
 
-Right now it sounds conceptual. Make it concrete:
+IMPORTANT REQUIREMENTS:
 
-Mention exact setup
-Hardware (e.g., laptop specs / cloud VM)
-OS and versions
-Give actual code-level details
-Example CrewAI agent config
-Prompt snippets used for MCQ generation
-Describe data flow step-by-step
-What happens when a student answers a question?
+1. Tone & Style:
+- Use a slightly natural and less perfect academic tone
+- Introduce small variations in sentence structure and flow
+- Avoid overly polished or robotic phrasing
+- Occasionally use mild informal academic phrases (e.g., "we noticed", "in our implementation", "interestingly")
 
-👉 Human papers always show “how it actually works,” not just architecture.
+2. Reduce AI Patterns:
+- Avoid repetitive phrases like:
+  "This paper proposes..."
+  "The system does..."
+  "The agent plays the role..."
+- Replace them with varied sentence openings
 
-2. Include real results (very important)
+3. Add Human-Like Imperfections:
+- Slightly vary sentence lengths (mix short and long)
+- Allow mild redundancy where natural
+- Do NOT make every sentence perfectly structured
 
-Your paper currently has no measurable evaluation, which is a major red flag.
+4. Natural Transitions:
+- Replace generic transitions like:
+  "One key design choice..."
+  "This split was a practical call..."
+- Use more natural transitions such as:
+  "In our case..."
+  "We ended up choosing this because..."
+  "During testing, we observed..."
 
-Add:
+5. Reduce Over-Explanation:
+- Remove unnecessary explanations of obvious points
+- Keep technical clarity but avoid explaining trivial logic
 
-Table with:
-Accuracy of difficulty prediction
-Response time analysis
-Student score improvements
-Compare:
-Your system vs static MCQ system
+6. Add Realistic Research Voice:
+- Add light experiential phrasing where appropriate:
+  "During development..."
+  "We initially tried..."
+  "In practice, this worked better because..."
 
-Example:
+7. Maintain:
+- All technical meaning
+- All equations, architecture, and results
+- Academic correctness
 
-“Students improved average score from 58% → 72% after adaptive questioning”
+8. Output:
+- Keep it in formal research paper format
+- Do NOT summarize
+- Do NOT shorten significantly
+- Only rewrite to improve human-likeness
 
-👉 Numbers = credibility.
+Now rewrite the following text:
 
-3. Add a small experiment or case study
-
-Even a simple one helps a lot:
-
-10–30 students
-Run test with:
-Static MCQ vs your adaptive system
-Show:
-Engagement
-Completion rate
-Performance
-
-👉 AI-generated papers usually skip real experiments.
-
-4. Reduce “perfect academic tone”
-
-Your current writing is too polished and generic.
-
-Change:
-
-❌ “This paper proposes an adaptive multi-agent system…”
-✅ “In our implementation, we built a prototype system using Django and CrewAI…”
-
-Add:
-
-Slightly varied sentence lengths
-Occasional simple wording
-
-👉 Humans don’t write like a textbook all the time.
-
-5. Add limitations (very important)
-
-AI-written papers often avoid weaknesses.
-
-Include a section like:
-
-LLM latency issues
-Cost of API calls (Gemini)
-Possible bias in generated questions
-Dependence on prompt quality
-
-👉 This makes it feel real and honest.
-
-6. Make references more grounded
-
-Right now references feel “inserted.”
-
-Improve by:
-
-Connecting each citation clearly:
-“Unlike Outay et al. [1], our system does not rely on KPI metrics but instead…”
-Avoid generic citation dumping
-7. Add figures that match YOUR system
-
-Not generic diagrams — include:
-
-Screenshot of your UI
-Flow diagram of your actual pipeline
-Agent interaction diagram (based on your implementation)
-
-👉 Visual proof = strong authenticity signal.
-
-8. Personalize technical decisions
-
-Explain why you chose things:
-
-Why Gemini 2.5 Flash?
-Why not IRT?
-Why CrewAI over AutoGen?
-
-👉 AI text explains “what,” humans explain “why.”
-
-9. Slight imperfection helps
-
-Don’t overdo it, but:
-
-Avoid overly symmetrical paragraphs
-Mix short and long sentences
-Use natural transitions
+[PASTE YOUR PAPER HERE]
