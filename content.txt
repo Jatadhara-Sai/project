@@ -1,0 +1,134 @@
+CHANGE 1 → INSERT a new slide AFTER Slide 1 (Title)
+New Slide Title: Research Gap & Motivation
+Layout: Two columns — left red (problems), right green (solutions)
+Left Column Header: ❌ Limitations of Existing Systems
+
+CAT requires large pre-calibrated item banks (costly, time-intensive)
+IRT models are statistically complex and hard for educators to interpret
+Black-box difficulty selection — no explanation per question
+Static assessments don't capture dynamic learning progression
+
+Right Column Header: ✅ How Our System Addresses It
+
+LLM generates questions on-the-fly — no item bank needed
+Natural-language reasoning is human-readable and editable
+Every difficulty decision has a written natural-language justification
+Per-question adaptive cycle adjusts difficulty in real time
+
+Bottom Tagline (centered, italic, green):
+"From statistical calibration → to LLM-native reasoning."
+
+CHANGE 2 → INSERT a new slide AFTER Slide 2 (System Architecture)
+New Slide Title: Dual-Layer Architecture — Our Key Innovation
+Subtitle (italic, grey):
+Decouples UI responsiveness from the computationally heavy multi-agent pipeline.
+Layout: Two columns side by side
+🟢 LEFT BOX — SYNCHRONOUS LAYER (green border)
+Tagline: Fast • < 1 second response • Keeps UI live
+
+Rule-based deterministic difficulty mapping
+Fixed transition pattern:
+Easy → Medium → Hard → Hard → Hard → Medium → Easy → Easy
+Returns next question immediately in JSON response
+No LLM call on the critical UI path
+Guarantees real-time question selection
+
+🔵 RIGHT BOX — ASYNCHRONOUS LAYER (blue border)
+Tagline: Deep AI reasoning • Runs in background daemon thread
+
+Full CrewAI pipeline runs after answer submission:
+MCQ Evaluator → Difficulty Predictor → Overseer
+Powered by Gemini 2.5 Flash via CrewAI
+AI analysis persisted to AdaptiveLearningHistory
+Updates final_difficulty after deep reasoning
+DB connection closed in finally block — no leaks
+
+Bottom Callout (light green box, centered, bold italic):
+💡 "User never waits for the LLM — but every decision is still backed by deep AI reasoning."
+
+CHANGE 3 → INSERT a new slide AFTER Slide 8 (APOT to CrewAI Mapping)
+New Slide Title: Adaptive Difficulty Transition Rules
+Subtitle (italic, grey):
+Six bidirectional rules executed by the Adaptive MCQ Overseer Agent.
+Layout: Two-column flowchart with green pills (left) and red pills (right)
+LEFT — ✅ IF CORRECT → Step Up (green header bar)
+Current→NextRationaleEasy→MediumProgressive challengeMedium→HardAdvance to next levelHard→HardMaintain mastery
+RIGHT — ❌ IF INCORRECT → Step Down (red header bar)
+Current→NextRationaleHard→MediumStep down one levelMedium→EasyStep down one levelEasy→EasyReinforce confidence
+Bottom Footer (light green bar, centered):
+Grounded in Vygotsky's Zone of Proximal Development & Bloom's Taxonomy. Eliminates oscillation and floor-trapping.
+
+💡 Tip for viva: Draw this as boxes connected by arrows (green up-arrows on left, red down-arrows on right) — much stronger visually than a plain table.
+
+
+CHANGE 4 → INSERT a new slide AFTER Slide 10 (Results scenario summary)
+New Slide Title: Results — Behavioral Trace
+Subtitle (italic, grey):
+All four representative scenarios produce logically consistent transitions, validating the pipeline.
+Main Content — Color-coded Table:
+ScenarioCorrect?TimePredictorOverseer OutputFast + Correct (green row)✅10sEasyMedium ↑ escalateSlow + Correct (green row)✅50sMediumHard ↑ advanceFast + Incorrect (red row)❌10sHardMedium ↓ step downSlow + Incorrect (red row)❌55sHardMedium ↓ step down
+Header row: dark green background, white bold text
+Green rows: light green fill, dark green border
+Red rows: light red fill, red border
+Last column: bold, color-matched to row (green up / red down)
+Bottom Takeaway Bar (dark green, white text, centered):
+Mastery escalates difficulty • Effort earns medium • Errors trigger graceful step-down
+
+CHANGE 5 → INSERT a new slide BEFORE Slide 14 (Thank You)
+New Slide Title: Key Contributions
+Subtitle (italic, grey):
+What this work delivers to the field of adaptive student assessment.
+Layout: 2×2 grid of cards, each with a numbered green circle
+Card 1 — Three-Agent CrewAI Pipeline
+Maps APOT (SOLMA → SOLPA → SOLTA) to three Gemini 2.5 Flash agents, replacing formula-driven scoring with contextual LLM reasoning.
+Card 2 — Dual-Layer Adaptation
+Synchronous rule-based fallback for instant UI + asynchronous multi-agent LLM analysis. Removes reliance on fixed item banks.
+Card 3 — Interpretable, Prompt-Engineered Logic
+Eliminates IRT pre-calibration. Every difficulty decision is auditable in natural language across three cognitive domains.
+Card 4 — Domain-Agnostic Deployment
+New domains require only a subject name and difficulty level — no pilot testing, no statistical calibration, no item bank construction.
+
+CHANGE 6 → INSERT a new slide BEFORE Slide 14 (Thank You) (after Contributions)
+New Slide Title: Conclusion & Future Work
+Layout: Two columns side by side
+🎯 LEFT — CONCLUSION (green header, light green box)
+✓ APOT operationalized via LLMs
+Successfully mapped SOLMA, SOLPA, and SOLTA roles to three Gemini-powered CrewAI agents.
+✓ Production-scale adaptive analysis
+Dual-layer design coexists with computationally heavy LLM pipelines without sacrificing real-time UX.
+✓ Item-bank bottleneck removed
+Dynamic LLM question generation eliminates the need for pre-curated, statistically validated banks.
+✓ Full transition coverage + audit trail
+Design-level analysis confirms behavioral consistency and natural-language explainability across every difficulty decision.
+🚀 RIGHT — FUTURE WORK (blue header, light blue box)
+1. Empirical validation
+Conduct user studies with diverse student populations to compare LLM difficulty labels with expert annotations.
+2. Explicit LSAA agent
+Add a learner-style profiling agent to adjust question format and modality to detected preferences.
+3. Session-level memory
+Enable CrewAI memory=True to track cross-question performance and plan competency over longer horizons.
+4. Scale to more domains
+Extend beyond Reasoning, Aptitude, Verbal — to Logical Thinking, Data Interpretation, and Reading Comprehension.
+
+📋 Final Slide Order After Changes (20 slides)
+
+Title (existing)
+Research Gap & Motivation ← NEW
+System Architecture (existing)
+Dual-Layer Architecture ← NEW ⭐
+Component Explanation header (existing)
+Component Explanation 6 bullets (existing)
+Three CrewAI Agents (existing)
+Agent Prompt Design (existing)
+APOT Mapping (existing)
+APOT to CrewAI table (existing)
+Adaptive Transition Rules ← NEW ⭐
+Tech Stack (existing)
+Results scenarios summary (existing)
+Behavioral Trace Table ← NEW
+Results rules table (existing)
+Results question detail (existing)
+Results dashboard (existing)
+Key Contributions ← NEW
+Conclusion & Future Work ← NEW
+Thank You (existing)
