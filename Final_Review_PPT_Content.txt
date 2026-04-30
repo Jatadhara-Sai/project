@@ -1,0 +1,221 @@
+═══════════════════════════════════════════════════════════
+FINAL REVIEW PPT — CONTENT FOR ALL 12 SLIDES
+A Multi-Agent System for Adaptive Student Competency Analysis
+Batch 10 | CSE (Data Science)
+═══════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 1 — Title Slide
+═══════════════════════════════════════════════════════════
+
+PRASAD V. POTLURI SIDDHARTHA INSTITUTE OF TECHNOLOGY
+Department of Computer Science & Engineering (Data Science)
+
+Title: A Multi-Agent System for Adaptive Student Competency Analysis
+
+Batch No.: 10
+Final Project Review
+
+Team Members:
+   P. Sujaya Raghavi — 22501A4459
+   K. Jatadhara Sai  — 22501A4425
+   D. Sushanth Teja  — 22501A4412
+
+Project Guide:
+   Mrs. Sreeja Sravanam
+   Assistant Professor, CSE (Data Science)
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 2 — Problem Statement
+═══════════════════════════════════════════════════════════
+
+- Traditional exams use fixed difficulty for every student.
+- Marks alone fail to reflect actual competency level.
+- No domain-wise analysis (Aptitude / Reasoning / Verbal).
+- No tracking of learning progression over time.
+- Static question banks expose questions through repeated practice.
+- Need: an intelligent, adaptive, AI-driven competency analyser.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 3 — Objectives
+═══════════════════════════════════════════════════════════
+
+Main Objective:
+- To design and implement a Multi-Agent System for adaptive,
+  domain-wise student competency analysis using LLM-generated questions.
+
+Specific Objectives:
+- To develop a CrewAI-based three-agent pipeline mapping to the APOT model.
+- To integrate Gemini 2.5 Flash for on-the-fly MCQ generation across three domains.
+- To dynamically adjust question difficulty using correctness and response time.
+- To compute a Competency Index quantifying per-domain and overall competency.
+- To deliver a Django + MySQL web platform with a real-time analytics dashboard.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 4 — Literature Survey
+═══════════════════════════════════════════════════════════
+
+Heading: Prior Works & Identified Gap
+
+| # | Paper                          | Technique                                  | Contribution                                   | Limitation                                  |
+|---|--------------------------------|--------------------------------------------|------------------------------------------------|---------------------------------------------|
+| 1 | Outay et al., 2024 (Base Paper)| MAS + APOT (Assess–Predict–Oversee–Transit)| Intelligent competency-management framework   | High complexity; scalability limited        |
+| 2 | Graf et al., 2010              | Adaptive learning + learning-style models  | Personalises content via Kolb styles           | No competency prediction                    |
+| 3 | Khosravi et al., 2019          | AI tutoring + performance analytics        | Adaptive teaching strategies & feedback        | No agent architecture; no stage tracking    |
+| 4 | [TO FILL: LLM-based MCQ generation paper]            |                                            |                                                |                                             |
+| 5 | [TO FILL: CrewAI / multi-agent orchestration paper]  |                                            |                                                |                                             |
+
+Identified Gap → Our Contribution:
+- No prior work combines MAS + LLM question generation + APOT-driven adaptive difficulty.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 5 — System Architecture
+═══════════════════════════════════════════════════════════
+
+Heading: System Architecture
+
+[INSERT BLOCK DIAGRAM — copy from Slide 2 of Second Review PPT]
+
+Caption:
+Fig. 1 — End-to-end adaptive assessment flow: user login →
+domain selection → LLM question generation → CrewAI agent
+pipeline → competency index → AI feedback.
+
+Two-line summary:
+- Three CrewAI agents (Evaluator, Predictor, Overseer) implement the four APOT phases.
+- Gemini 2.5 Flash drives question generation; MySQL persists every interaction for the Competency Index.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 6 — Explanation of Components
+═══════════════════════════════════════════════════════════
+
+- User Registration & Login — Django auth; session-bound test attempt.
+- Dashboard / Domain Selection — Pick Aptitude, Reasoning, or Verbal Ability.
+- Question Generator — Gemini 2.5 Flash; live MCQ via JSON schema.
+- MCQ Evaluator Agent (SoLMA – Assess) — Outputs correctness verdict + reason.
+- Difficulty Predictor Agent (SoLPA – Predict) — Classifies Easy / Medium / Hard.
+- Adaptive MCQ Overseer Agent (SoLTA – Oversee + Transit) — Sets next difficulty.
+- Competency Index DB — Stores per-question result, time, difficulty.
+- AI Feedback Module — Generates summary, leaderboard band, recommendations.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 7 — Algorithms / Models Used
+═══════════════════════════════════════════════════════════
+
+- APOT Model (Outay et al., 2024) — four-phase adaptive learning loop.
+- CrewAI Sequential Process — three-agent orchestration with shared context.
+- Gemini 2.5 Flash (LLM) — live MCQ generation under JSON schema.
+- Psychometric Rule Classifier — Fast+Correct → Easy / Slow+Correct → Medium / Wrong → Hard.
+- Vygotsky's Zone of Proximal Development + Bloom's Taxonomy — drive next-question logic.
+- Mathematical Indices — Learning Index (LI), Stage of Learning Index (SoLI), Competency Index (CI).
+
+Novelty:
+- First implementation that fuses CrewAI + LLM-generated MCQs onto the APOT cycle, replacing static item banks.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 8 — Implementation Details
+═══════════════════════════════════════════════════════════
+
+- Frontend: HTML, CSS, Bootstrap, Chart.js
+- Backend: Django 4.2 (Python) — manages full test lifecycle
+- Database: MySQL — StudentTestResult, QuestionPerformance, AdaptiveLearningHistory
+- AI / Agent Layer: CrewAI (Process.sequential); Gemini 2.5 Flash; google-generativeai SDK
+- Dev Environment: VS Code, Jupyter Notebook, Git / GitHub
+- Hardware: Standard PC/laptop, ≥ 8 GB RAM; OS: Windows / Linux
+- Deployment: [TO FILL — local Django dev server / Render / AWS EC2?]
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 9 — Dataset Description
+═══════════════════════════════════════════════════════════
+
+- Source: Live LLM generation — Gemini 2.5 Flash (no fixed item bank).
+- Domains (3): Aptitude, Reasoning, Verbal Ability.
+- Difficulty levels (3): Easy, Medium, Hard.
+- Session size: 20 MCQs per attempt, with response time per question.
+- Per-question fields captured: question, options, correct answer,
+  student answer, time(s), domain, difficulty.
+- Persistence: MySQL — StudentTestResult, QuestionPerformance, AdaptiveLearningHistory.
+- Train/Val/Test split: Not applicable — no model training; system is rule + LLM driven.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 10 — Results & Discussion (Part 1)
+═══════════════════════════════════════════════════════════
+
+Heading 1: Performance by Difficulty Level
+[INSERT IMAGE — from Slide 10 of Second Review PPT]
+- Hard:   0.0%   (0 / 9 correct)
+- Medium: 75.0%  (3 / 4 correct)
+- Easy:   100.0% (5 / 5 correct)
+
+Heading 2: Pipeline Behaviour Validation (4/4 scenarios passed)
+- Fast + Correct  → escalated to Medium  ✔
+- Slow + Correct  → moved to Medium      ✔
+- Wrong (Easy)    → kept at Easy (build confidence) ✔
+- Wrong (Hard)    → stepped down to Medium ✔
+
+Heading 3: Comparison Table
+
+| Capability                    | Static MCQ Test | Outay 2024 (Theory) | Our System |
+|-------------------------------|-----------------|---------------------|------------|
+| Adaptive difficulty           | ✗               | ✓                   | ✓          |
+| LLM-generated MCQs            | ✗               | ✗                   | ✓          |
+| Per-domain scoring            | Partial         | ✓                   | ✓          |
+| End-to-end implementation     | ✓               | ✗                   | ✓          |
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 11 — Results & Discussion (Part 2)
+═══════════════════════════════════════════════════════════
+
+Heading 1: Difficulty Progression Timeline
+[INSERT IMAGE — from Slide 11 of Second Review PPT]
+
+Heading 2: Adaptive Decision Table
+
+| Correct? | Current | Next   | Rationale              |
+|----------|---------|--------|------------------------|
+| Yes      | Easy    | Medium | Progressive challenge  |
+| Yes      | Medium  | Hard   | Advance to next level  |
+| Yes      | Hard    | Hard   | Maintain mastery       |
+| No       | Hard    | Medium | Step down              |
+| No       | Medium  | Easy   | Step down              |
+| No       | Easy    | Easy   | Reinforce confidence   |
+
+Heading 3: Sample Output & Final Dashboard
+[INSERT IMAGES — from Slides 12 & 13 of Second Review PPT]
+- Overall Score: 45% (9 / 20)
+- Total Time: 783s | Avg: 17.3s/question
+- Difficulty progression: Easy → Medium
+- Domain Performance bar chart (Aptitude / Reasoning / Verbal)
+
+Strengths & Weaknesses:
+- Strengths: live LLM generation, transparent rationale per question, real adaptation observed.
+- Weaknesses: depends on Gemini API uptime; no offline mode; small evaluation cohort.
+
+
+═══════════════════════════════════════════════════════════
+SLIDE 12 — Conclusion
+═══════════════════════════════════════════════════════════
+
+- Built a working Multi-Agent System for adaptive student competency analysis.
+- Successfully mapped the four APOT phases onto three CrewAI agents.
+- Integrated Gemini 2.5 Flash for live MCQ generation — no static item bank.
+- Validated adaptive logic across 4 scenarios + a full 20-question session.
+- Delivered a Django + MySQL dashboard with per-domain Competency Index.
+- Key Contribution: First MAS + LLM + APOT implementation for adaptive assessment.
+- Future Work: larger evaluation cohort; offline question caching; mobile app; RL-based Overseer.
+
+
+═══════════════════════════════════════════════════════════
+END OF DOCUMENT
+═══════════════════════════════════════════════════════════
